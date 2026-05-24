@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Buena Práctica-Gestión-DNI</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; text-align: center; }
+    input, button { padding: 10px; margin: 5px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #2196F3; color: white; }
+    tr:nth-child(even) { background: #f2f2f2; }
+    .totales { background:#e0e0e0; font-weight:bold; }
+    .logo { display: block; margin: 0 auto 15px auto; max-width: 120px; } /* centrado y tamaño */
+    h2 { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <!-- Insignia centrada -->
+  <img src="insignia.png" alt="Insignia del colegio" class="logo">
+
+  <h2>Consulta con DNI - Progreso de Competencias - Primer Bimestre 2026</h2>
+
+  <input type="text" id="dni" placeholder="Ingrese DNI">
+  <button onclick="buscar()">Buscar</button>
+  <div id="resultado"></div>
+
+  <script>
+    let datos = [];
+    let headers = []; // guardamos los encabezados del CSV
+
+    // Leer el CSV
+    fetch("notas.csv")
+      .then(r => r.text())
+      .then(t => {
+        let lineas = t.trim().split("\n");
+        headers = lineas[0].split(";").map(h => h.trim()); // guardamos los encabezados
+        lineas.slice(1).forEach(l => {
+          let valores = l.split(";");
+          let obj = {};
+          headers.forEach((h,i) => obj[h] = valores[i] ? valores[i].trim() : "");
+          datos.push(obj);
+        });
+      });
+
+    function buscar(){
+      let dni = document.getElementById("dni").value.trim();
+      let alumno = datos.find(d => d["DNI"] === dni);
+      let r = document.getElementById("resultado");
+
+      if(!alumno){
+        r.innerHTML = "❌ DNI no encontrado";
+        return;
+      }
+
+      let html = `<h3>${alumno["ESTUDIANTE"]}</h3>`;
+      html += `<table>
+        <tr>
+          <th>Área Curricular</th>
+          <th>C1</th>
+          <th>C2</th>
+          <th>C3</th>
+          <th>C4</th>
+        </tr>`;
+
+      // Agrupar competencias por área curricular
+      let areas = {};
+      headers.forEach(col => {
+        if(col.includes("C1") || col.includes("C2") || col.includes("C3") || col.includes("C4")){
+          let partes = col.split(" ");
+          let area = partes.slice(0, -1).join(" "); // todo menos la última palabra
+          let comp = partes[partes.length - 1];     // última palabra (C1, C2, C3, C4)
+          if(!areas[area]) areas[area] = {};
+          areas[area][comp] = alumno[col];
+        }
+      });
+
+      // Mostrar las áreas en el mismo orden del CSV
+      let areasMostradas = new Set();
+      headers.forEach(col => {
+        if(col.includes("C1") || col.includes("C2") || col.includes("C3") || col.includes("C4")){
+          let area = col.split(" ").slice(0, -1).join(" ");
+          if(!areasMostradas.has(area)){
+            areasMostradas.add(area);
+            html += `<tr>
+              <td>${area}</td>
+              <td>${areas[area]["C1"] || ""}</td>
+              <td>${areas[area]["C2"] || ""}</td>
+              <td>${areas[area]["C3"] || ""}</td>
+              <td>${areas[area]["C4"] || ""}</td>
+            </tr>`;
+          }
+        }
+      });
+
+      // Totales (si existen en el CSV)
+      ["Total de Calificaciones","Total AD","Total A","Total B","Total C"].forEach(col => {
+        if (alumno[col] !== undefined && alumno[col] !== "") {
+          html += `<tr class="totales"><td colspan="4">${col}</td><td>${alumno[col]}</td></tr>`;
+        }
+      });
+
+      html += "</table>";
+      r.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
